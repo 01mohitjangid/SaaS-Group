@@ -1,0 +1,50 @@
+# Step 1 brings up the database and the API. The two React apps join this file in
+# step 3, so `docker compose up` grows into the full stack rather than being rewritten.
+name: peblo-tv-mini
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: peblo
+      POSTGRES_PASSWORD: peblo
+      POSTGRES_DB: peblo_tv
+    ports:
+      - "5432:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      # Without this the API races the database on a cold `compose up`.
+      test: ["CMD-SHELL", "pg_isready -U peblo -d peblo_tv"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    environment:
+      ENVIRONMENT: local
+      DATABASE_URL: postgresql+asyncpg://peblo:peblo@db:5432/peblo_tv
+      API_TOKENS: dev-admin-token:admin,dev-editor-token:editor
+      STORAGE_BACKEND: local
+      STORAGE_LOCAL_ROOT: /srv/storage
+      PUBLIC_MEDIA_BASE_URL: http://localhost:8000/media
+      CORS_ALLOW_ORIGINS: http://localhost:5173,http://localhost:5174
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - media_data:/srv/storage
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request;urllib.request.urlopen('http://localhost:8000/healthz')\""]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  db_data:
+  media_data:
