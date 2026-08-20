@@ -1,0 +1,27 @@
+# The build context is the repo root (so data/challenge ships with the image).
+# Without this, COPY backend pulls in the host's macOS virtualenv and caches — a
+# 253 MB context and a 1.1 GB image.
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/.mypy_cache/
+**/.pytest_cache/
+**/.ruff_cache/
+**/*.egg-info/
+
+.git/
+.github/
+.claude/
+
+# Never bake a developer's real environment or local uploads into an image.
+.env
+.env.*
+!.env.example
+storage/
+
+backend/tests/
+# Destructive: its first action is DROP SCHEMA. Never ship it in a runtime image.
+backend/tools/
+docs/
+**/*.md
+!README.md
