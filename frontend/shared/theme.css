@@ -1,0 +1,111 @@
+/* Peblo TV — one palette for both apps.
+ *
+ * Netflix's surface language: near-black ground, a single saturated red used sparingly
+ * for the one action that matters, and a grey ramp doing all the structural work. The
+ * CMS uses the same tokens at tighter spacing — an editor here 50 times a week should
+ * feel they are inside the same product, not a different one.
+ */
+
+@theme {
+  --color-background: #0b0b0c;
+  --color-foreground: #f5f5f7;
+
+  --color-card: #17171a;
+  --color-card-foreground: #f5f5f7;
+  --color-popover: #1c1c20;
+  --color-popover-foreground: #f5f5f7;
+
+  /* Netflix red. Reserved for destructive-or-primary intent so it keeps its meaning. */
+  --color-primary: #e50914;
+  --color-primary-hover: #f6121d;
+  --color-primary-foreground: #ffffff;
+
+  --color-secondary: #26262b;
+  --color-secondary-foreground: #f5f5f7;
+
+  --color-muted: #1f1f24;
+  --color-muted-foreground: #a1a1ab;
+
+  --color-accent: #2a2a30;
+  --color-accent-foreground: #f5f5f7;
+
+  --color-destructive: #f0353f;
+  --color-destructive-foreground: #ffffff;
+  --color-success: #46d369;
+  --color-warning: #f5c518;
+
+  /* Raised from #2c2c33: at 1.4:1 against the page these were technically visible and
+     practically invisible. WCAG 1.4.11 wants 3:1 for the boundary of a control, and a
+     CMS that is mostly form fields cannot afford edges you have to hunt for. */
+  --color-border: #3a3a44;
+  --color-input: #4a4a56;
+  --color-ring: #e50914;
+
+  --radius-sm: 0.25rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  --font-sans:
+    "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial,
+    sans-serif;
+}
+
+@layer base {
+  * {
+    border-color: var(--color-border);
+  }
+
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keyboard users must be able to see where they are; the ring is the brand red so it
+     reads as intentional rather than as a browser default. */
+  :focus-visible {
+    outline: 2px solid var(--color-ring);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: var(--color-primary);
+    color: var(--color-primary-foreground);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* Honour the OS setting for everything, not only the things that remembered to opt in:
+     skeleton pulses, spinners, smooth scrolling and every transition. */
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  /* Rows scroll horizontally; the scrollbar itself is noise on a browse surface. */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .motion-safe-only {
+      transition: none !important;
+      animation: none !important;
+    }
+  }
+}
