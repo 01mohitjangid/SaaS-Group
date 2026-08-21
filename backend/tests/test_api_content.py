@@ -288,7 +288,9 @@ async def test_replacing_a_poster_keeps_one_record_and_one_file(
 
     listed = (await client.get(f"/admin/artwork/shows/{show_id}", headers=as_editor())).json()
     assert len(listed) == 1
-    posters = list(Path(settings.storage_local_root).rglob("poster.*"))
+    # Content-addressed keys mean identical bytes reuse the same URL, so re-uploading
+    # the same file leaves exactly one object rather than accumulating versions.
+    posters = list(Path(settings.storage_local_root).rglob("poster-*"))
     assert len(posters) == 1
 
 
@@ -356,8 +358,8 @@ async def test_deleting_an_episode_removes_only_its_own_image(
     assert (
         await client.delete(f"/admin/episodes/{episode_id}", headers=as_editor())
     ).status_code == 204
-    remaining = sorted(p.name for p in root.rglob("*.jpg"))
-    assert remaining == ["banner.jpg", "poster.jpg"]
+    remaining = sorted(p.name.rsplit("-", 1)[0] for p in root.rglob("*.jpg"))
+    assert remaining == ["banner", "poster"]
 
 
 async def test_deleting_one_image_leaves_the_others(
@@ -375,8 +377,10 @@ async def test_deleting_one_image_leaves_the_others(
     assert (
         await client.delete(f"/admin/artwork/{poster['id']}", headers=as_editor())
     ).status_code == 204
-    remaining = sorted(p.name for p in Path(settings.storage_local_root).rglob("*.jpg"))
-    assert remaining == ["banner.jpg"]
+    remaining = sorted(
+        p.name.rsplit("-", 1)[0] for p in Path(settings.storage_local_root).rglob("*.jpg")
+    )
+    assert remaining == ["banner"]
 
 
 async def test_uploading_to_neither_owner_explains_what_is_wrong(
