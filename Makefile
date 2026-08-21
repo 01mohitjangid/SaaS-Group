@@ -1,4 +1,4 @@
-.PHONY: help db up down migrate seed api test check bench artwork
+.PHONY: help db up down migrate seed api ui test check bench artwork
 
 BE := backend
 
@@ -26,6 +26,9 @@ artwork: ## fetch one Unsplash photograph per show into data/artwork/ (run once)
 
 seed: ## load the challenge seed data and print the validation report
 	cd $(BE) && .venv/bin/python -m scripts.seed --reset
+
+ui: ## run both React apps against a locally running API
+	cd frontend && pnpm install && pnpm dev
 
 api: ## run the API with reload
 	cd $(BE) && .venv/bin/uvicorn app.main:create_app --factory --reload --port 8000

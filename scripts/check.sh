@@ -4,7 +4,10 @@
 #   ./scripts/check.sh          or   make check
 #
 # Backend:  ruff format --check · ruff check · mypy · pytest
-# Frontend: added in step 3, alongside the two React apps.
+# Frontend: prettier --check · eslint · tsc --noEmit, across both React apps.
+#
+# No production build here: `tsc --noEmit` is the fast type signal, and CI runs the real
+# `vite build` as the final integration gate.
 #
 # A check whose tool is missing prints SKIP rather than failing, so read the SKIP
 # lines: a green run with skips means "nothing available failed", not "all covered".
@@ -41,7 +44,7 @@ skip() {
   echo skip >"$logdir/$1.code"
 }
 
-echo "▸ check (parallel) · backend=$BE"
+echo "▸ check (parallel) · backend=$BE · frontend=frontend"
 
 if [ -x "$VENV/ruff" ]; then
   run be:format "$VENV/ruff" format --check .
@@ -65,10 +68,25 @@ else
   skip be:tests "no virtualenv — tests did NOT run"
 fi
 
-if [ -f "$root/frontend/package.json" ]; then
-  skip fe:all "frontend checks are wired in step 3"
+FE="$root/frontend"
+if [ ! -f "$FE/package.json" ]; then
+  skip fe:all "no frontend found at frontend/"
+elif [ ! -d "$FE/node_modules" ]; then
+  skip fe:all "frontend/node_modules missing — run 'pnpm install' in frontend/ first"
 else
-  skip fe:all "no frontend yet — that is step 3, not a passing check"
+  run_fe() { # name, script...
+    local name="$1"
+    shift
+    names+=("$name")
+    (
+      cd "$FE" || exit 1
+      "$@" >"$logdir/$name.out" 2>&1
+      echo $? >"$logdir/$name.code"
+    ) &
+  }
+  run_fe fe:format pnpm exec prettier --check . --log-level error
+  run_fe fe:lint pnpm run --silent lint
+  run_fe fe:types pnpm run --silent typecheck
 fi
 
 wait

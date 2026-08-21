@@ -1,5 +1,8 @@
-# Step 1 brings up the database and the API. The two React apps join this file in
-# step 3, so `docker compose up` grows into the full stack rather than being rewritten.
+# `docker compose up` brings up the database, the API and both UIs, seeded and working:
+#
+#   CMS    http://localhost:5173   (sign in with dev-editor-token or dev-admin-token)
+#   Viewer http://localhost:5174
+#   API    http://localhost:8000
 name: peblo-tv-mini
 
 services:
@@ -44,6 +47,34 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+
+  cms:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: cms
+        # Baked into the bundle: this is the URL the *browser* uses, so it is the
+        # published host port rather than the `api` service name.
+        VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5173:80"
+
+  viewer:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+      args:
+        APP: viewer
+        VITE_API_BASE_URL: http://localhost:8000
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "5174:80"
 
 volumes:
   db_data:

@@ -2,19 +2,25 @@
 
 CMS upload → published catalogue → Netflix-style browse.
 
-**Status: steps 1 and 2 of 4 complete.** The plan is in
-[`docs/ROADMAP.md`](docs/ROADMAP.md). Step 1 built the foundation — schema, storage
-seam, validation rules, seeded data. Step 2 built the whole backend: artwork upload,
-CRUD, enforced roles, an atomic publish job, the viewer catalogue and search. Both are
-proven against a real Postgres, not sketched. The two React apps are step 3.
+**Status: steps 1–3 of 4 complete.** The plan is in [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Step 1 built the foundation (schema, storage seam, validation rules, seeded data), step 2
+the whole backend (upload, CRUD, enforced roles, atomic publish, catalogue and search),
+and step 3 the two React apps — an internal CMS and a Netflix-style viewer, built with
+shadcn-style components on Radix and Tailwind. Step 4 is CI and the operability write-up.
 
 ## Run it
 
-The short way — migrates, seeds and serves in one step:
+The short way — migrates, seeds and serves the whole stack in one step:
 
 ```bash
-docker compose up --build        # API on http://localhost:8000
+docker compose up --build
 ```
+
+| | |
+|---|---|
+| **CMS** | http://localhost:5173 — sign in with `dev-editor-token` or `dev-admin-token` |
+| **Viewer** | http://localhost:5174 |
+| **API** | http://localhost:8000 |
 
 Or locally, which is what you want in order to run the tests:
 
@@ -26,6 +32,10 @@ cd backend && uv venv --python 3.12 && uv pip install -e ".[dev]" && cd ..
 make migrate                     # alembic upgrade head
 make seed                        # load the 95 seed rows and print the validation report
 make api                         # http://localhost:8000
+
+make ui                          # both React apps: CMS 5173, viewer 5174 (needs Node 22+)
+
+make artwork                     # optional: re-fetch the show photographs (already committed)
 ```
 
 Then:
@@ -153,10 +163,41 @@ most later:
 
 1. **Poster and banner belong to the show; thumbnail belongs to the episode.** This mirrors
    the surfaces in Part C and makes Season 0 trailers correct instead of broken.
-2. **The sample `assets/` images were not in the shared Drive folder**, so seeding generates
-   placeholder artwork at exact spec (600×900, 1280×720, 640×360, all under 200 KB). The
-   upload endpoint in step 2 is what enforces the specs on real uploads — the generator is
-   scaffolding, not the validation.
+2. **The sample `assets/` images were not in the shared Drive folder.** Each show instead
+   has one real photograph in `data/artwork/<slug>/source.jpg`, fetched once by
+   `make artwork` and **committed** — seeding then crops it to a poster (600×900), a
+   banner (1280×720) and a thumbnail per episode (640×360), washes it in the show's colour
+   and lays the title over a scrim. Photographs come from `picsum.photos`, which serves
+   Unsplash images without an API key; set `UNSPLASH_ACCESS_KEY` and the fetcher searches
+   Unsplash on each show's own categories instead, which is what makes a poster actually
+   look like its programme. Delete the files and seeding falls back to generated abstract
+   artwork — **nothing in the seed path touches the network**, because a seed that needs
+   the internet turns "compose works first try" into a coin flip.
+
+## The two UIs
+
+Both are React + TypeScript + Vite in one pnpm workspace, sharing a typed API client and
+a component set (`frontend/shared`). Components follow shadcn/ui — Radix primitives,
+Tailwind, and the code owned in-repo rather than pulled from a package — on a Netflix
+palette: near-black ground, one saturated red kept for the action that changes what
+viewers see, and a grey ramp doing the structural work. TanStack Query handles fetching,
+caching and invalidation; a content change invalidates the validation report, so the
+publish button's reasons can never be stale.
+
+**Viewer** (`frontend/viewer`) reads the published catalogue and nothing else — the three
+route handlers take no database session and the built bundle contains no `/admin` path
+and no token. Featured hero uses the banner, browse rows use posters, episode lists use
+thumbnails. Season 0 is a separate Trailers shelf, never a season. A grouped episode is
+one row with its languages as a choice. Slow images hold their aspect ratio, shimmer,
+then fade in; a failed one keeps its frame and shows the title so the row stays navigable.
+
+**CMS** (`frontend/cms`) is built for someone doing this fifty times a week: dense
+tables, filters in the URL so a view is shareable, and errors that appear next to the
+field that caused them. The three artwork slots state the required shape, size and weight
+*before* a file is picked, preview the local file immediately, and show the API's own
+sentence when it is rejected — the browser never decides what is acceptable. The publish
+button is disabled with every reason listed, and the validation report links to the show
+that needs fixing.
 
 ## Written reasoning (Part E)
 
@@ -256,11 +297,13 @@ consistency (§3) and wrote down the size at which that stops being the right ca
 
 ### 5. What is left out, and where AI was used
 
-**Left out on purpose:** both React apps and the CI workflow (steps 3 and 4, not
+**Left out on purpose:** the CI workflow and the operability write-up (step 4, not
 skipped — not yet reached). A publish *dry-run* showing a diff, and an audit log of who
 changed what, are still unbuilt; versioned rollback, the third stretch item, is done
 because the immutable-run design made it fifteen lines. There is no rate limiting and no
-pagination on `/catalog` — at 95 rows neither earns its complexity yet.
+pagination on `/catalog` — at 95 rows neither earns its complexity yet. The CMS has no
+drag-to-reorder, which is why the episode-number constraint being non-deferrable is
+acceptable.
 
 **AI:** this repo was built with Claude Code driving a maker/checker loop — the code is
 written, then independent reviewer agents run the checks and audit the diff, and the
