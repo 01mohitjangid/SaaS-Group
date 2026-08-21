@@ -26,5 +26,9 @@ backend/storage/
 .claude/
 .docs/
 
+# Show photographs are fetched by `make artwork` and committed on purpose: seeding must
+# never need the network, or `docker compose up` breaks whenever the network does.
+!data/artwork/
+
 # OS
 .DS_Store

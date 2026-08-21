@@ -1,4 +1,4 @@
-.PHONY: help db up down migrate seed api test check bench
+.PHONY: help db up down migrate seed api test check bench artwork
 
 BE := backend
 
@@ -20,6 +20,9 @@ down: ## stop the stack (keeps volumes)
 
 migrate: ## apply migrations
 	cd $(BE) && .venv/bin/alembic upgrade head
+
+artwork: ## fetch one Unsplash photograph per show into data/artwork/ (run once)
+	cd $(BE) && .venv/bin/python -m tools.fetch_artwork
 
 seed: ## load the challenge seed data and print the validation report
 	cd $(BE) && .venv/bin/python -m scripts.seed --reset
