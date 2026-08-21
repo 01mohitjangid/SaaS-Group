@@ -80,8 +80,14 @@ def test_the_database_layer_does_not_depend_on_the_web_layer(module: Path) -> No
 
 
 @pytest.mark.parametrize("module", _modules("storage/*.py"), ids=lambda p: p.name)
-def test_the_storage_layer_knows_nothing_about_http_or_the_database(module: Path) -> None:
-    banned = ("app.api", "app.db", "app.main", "fastapi", "starlette", "sqlalchemy")
+def test_the_storage_layer_knows_nothing_about_http_or_the_domain(module: Path) -> None:
+    """Storage may speak SQL — one backend keeps bytes in Postgres — but not ORM or HTTP.
+
+    The line that matters is `app.db`: the storage layer writes to a table of its own with
+    raw SQL and never touches a mapped model, so nothing above it can be tempted to read
+    artwork bytes by joining to them.
+    """
+    banned = ("app.api", "app.db", "app.domain", "app.main", "fastapi", "starlette")
     assert _offenders(module, banned) == [], module.name
 
 

@@ -25,7 +25,7 @@ from app.api.admin_publish import router as admin_publish_router
 from app.api.catalog import router as catalog_router
 from app.api.error_handlers import register_error_handlers
 from app.api.health import router as health_router
-from app.api.media import mount_local_media
+from app.api.media import mount_media
 from app.config import Settings, get_settings
 from app.db.session import create_engine, create_session_factory
 from app.domain.reference import load_reference
@@ -37,14 +37,11 @@ logger = logging.getLogger(SERVICE_NAME)
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings: Settings = app.state.settings
-    engine = create_engine(settings)
-    app.state.engine = engine
-    app.state.session_factory = create_session_factory(engine)
     logger.info("started environment=%s storage=%s", settings.environment, settings.storage_backend)
     try:
         yield
     finally:
-        await engine.dispose()
+        await app.state.engine.dispose()
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
@@ -58,13 +55,22 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         version=__version__,
         summary="CMS content API, catalogue publisher and viewer catalogue feed.",
         lifespan=lifespan,
+        root_path=resolved.root_path,
     )
     app.state.settings = resolved
     app.state.reference = load_reference(
         Path(resolved.reference_path) if resolved.reference_path else None
     )
 
-    storage = build_storage(resolved)
+    # The engine is lazy (nothing connects here), so the session factory can be built
+    # before startup — which the Postgres storage backend needs, and which keeps the
+    # /media mount a real route rather than something added mid-lifespan.
+    engine = create_engine(resolved)
+    session_factory = create_session_factory(engine)
+    app.state.engine = engine
+    app.state.session_factory = session_factory
+
+    storage = build_storage(resolved, session_factory)
     app.state.storage = storage
 
     app.add_middleware(
@@ -84,5 +90,5 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(admin_reference_router)
     app.include_router(admin_publish_router)
 
-    mount_local_media(app, storage)
+    mount_media(app, storage)
     return app

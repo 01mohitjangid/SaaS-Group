@@ -27,6 +27,18 @@ if not config.get_main_option("sqlalchemy.url", None):
     config.set_main_option("sqlalchemy.url", get_settings().sync_database_url)
 target_metadata = Base.metadata
 
+#: Tables that exist on purpose without a mapped model. `storage_objects` holds artwork
+#: bytes and belongs to the storage layer, which sits below the domain — giving it an ORM
+#: class would invite the rest of the app to read it directly instead of going through
+#: `ObjectStorage`. Autogenerate would otherwise report it as a table to drop.
+UNMAPPED_TABLES = {"storage_objects"}
+
+
+def include_object(
+    obj: object, name: str | None, type_: str, reflected: bool, compare_to: object
+) -> bool:
+    return not (type_ == "table" and name in UNMAPPED_TABLES)
+
 
 def run_migrations_offline() -> None:
     context.configure(
@@ -35,6 +47,7 @@ def run_migrations_offline() -> None:
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
+        include_object=include_object,
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -47,7 +60,12 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata, compare_type=True)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            compare_type=True,
+            include_object=include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

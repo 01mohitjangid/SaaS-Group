@@ -73,3 +73,34 @@ def test_blank_optional_values_mean_unset_not_empty_string() -> None:
 def test_settings_never_repr_their_secrets() -> None:
     settings = _settings(s3_secret_access_key="super-secret-value")
     assert "super-secret-value" not in repr(settings)
+
+
+def test_the_vercel_requirements_match_the_backend_dependencies() -> None:
+    """The serverless bundle pins its own list; drift there is a runtime ImportError.
+
+    `requirements.txt` is deliberately a subset — the function runs no migrations and
+    talks to no bucket — but everything in it must exist in pyproject, and every runtime
+    import the app makes must be in it.
+    """
+    import re
+    import tomllib
+    from pathlib import Path
+
+    repo = Path(__file__).resolve().parents[2]
+    project = tomllib.loads((repo / "backend" / "pyproject.toml").read_text())
+    declared = {
+        re.split(r"[<>=\[]", line)[0].strip().lower() for line in project["project"]["dependencies"]
+    }
+    vercel = {
+        re.split(r"[<>=\[]", line)[0].strip().lower()
+        for line in (repo / "requirements.txt").read_text().splitlines()
+        if line.strip() and not line.startswith("#")
+    }
+
+    assert vercel <= declared, f"in requirements.txt but not pyproject: {vercel - declared}"
+
+    # These are what the deployment deliberately leaves out: migrations run from a
+    # machine, and artwork lives in Postgres rather than a bucket.
+    assert declared - vercel == {"alembic", "boto3", "psycopg"}, (
+        f"unexpected difference: {declared - vercel}"
+    )

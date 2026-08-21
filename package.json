@@ -1,0 +1,7 @@
+{
+  "name": "peblo-tv-mini",
+  "private": true,
+  "description": "Root manifest so Vercel resolves the right package manager. The workspace itself lives in frontend/.",
+  "packageManager": "pnpm@10.25.0",
+  "engines": { "node": ">=22" }
+}

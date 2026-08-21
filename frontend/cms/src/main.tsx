@@ -13,6 +13,9 @@ import { ShowEditPage } from "./pages/ShowEditPage";
 import { ShowsPage } from "./pages/ShowsPage";
 import "./index.css";
 
+//: "/admin/" -> "/admin", "/" -> "/". See the note on <BrowserRouter> below.
+const BASENAME = import.meta.env.BASE_URL.replace(/\/$/, "") || "/";
+
 const client = new QueryClient({
   defaultOptions: {
     queries: {
@@ -27,7 +30,14 @@ const client = new QueryClient({
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={client}>
-      <BrowserRouter>
+      {/* Vite's BASE_URL follows the build: "/" standalone, "/admin/" when the CMS
+          shares a deployment with the viewer. Reading it here means the router and the
+          asset URLs can never disagree.
+
+          The trailing slash has to go: react-router's `stripBasename` requires
+          `pathname.startsWith(basename)`, so a basename of "/admin/" matches nothing at
+          "/admin" and the router renders an empty page rather than an error. */}
+      <BrowserRouter basename={BASENAME}>
         <AuthProvider>
           <Routes>
             <Route element={<App />}>
