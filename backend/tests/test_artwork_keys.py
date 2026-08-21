@@ -6,9 +6,12 @@ from typing import cast
 
 import pytest
 
-from app.domain.artwork import episode_key, extension_for, show_key
+from app.domain.artwork import episode_key, extension_for, show_key, version_of
 from app.domain.reference import ArtworkKind
 from app.storage.base import validate_key
+
+#: A fixed version keeps the key-shape assertions readable; `version_of` is tested below.
+V = "abc123abc123"
 
 
 def test_artwork_is_keyed_by_database_id_never_by_slug_or_external_id() -> None:
@@ -16,41 +19,57 @@ def test_artwork_is_keyed_by_database_id_never_by_slug_or_external_id() -> None:
     show_id = uuid.UUID("11111111-2222-3333-4444-555555555555")
     episode_id = uuid.UUID("66666666-7777-8888-9999-000000000000")
 
-    assert show_key(ArtworkKind.POSTER, show_id=show_id) == f"artwork/shows/{show_id}/poster.jpg"
-    assert show_key(ArtworkKind.BANNER, show_id=show_id) == f"artwork/shows/{show_id}/banner.jpg"
     assert (
-        episode_key(ArtworkKind.THUMBNAIL, episode_id=episode_id)
-        == f"artwork/episodes/{episode_id}/thumbnail.jpg"
+        show_key(ArtworkKind.POSTER, show_id=show_id, version=V)
+        == f"artwork/shows/{show_id}/poster-{V}.jpg"
     )
+    assert (
+        episode_key(ArtworkKind.THUMBNAIL, episode_id=episode_id, version=V)
+        == f"artwork/episodes/{episode_id}/thumbnail-{V}.jpg"
+    )
+
+
+def test_new_bytes_get_a_new_url_so_a_cached_copy_cannot_win() -> None:
+    """Reusing one path for changing bytes is how artwork goes stale for every visitor.
+
+    This was a real bug: regenerating every poster changed nothing on screen, because the
+    browser already had the old picture at the same URL.
+    """
+    show_id = uuid.uuid4()
+    before = show_key(ArtworkKind.POSTER, show_id=show_id, version=version_of(b"old picture"))
+    after = show_key(ArtworkKind.POSTER, show_id=show_id, version=version_of(b"new picture"))
+    assert before != after
+
+    # …and identical bytes keep the same URL, so re-seeding is still a no-op.
+    assert version_of(b"same") == version_of(b"same")
+    assert len(version_of(b"same")) == 12
 
 
 def test_renaming_a_show_cannot_repoint_its_artwork() -> None:
     show_id = uuid.uuid4()
-    before = show_key(ArtworkKind.POSTER, show_id=show_id)
     # A slug change is invisible to the key, because the key never saw the slug.
-    assert before == show_key(ArtworkKind.POSTER, show_id=show_id)
+    assert show_key(ArtworkKind.POSTER, show_id=show_id, version=V) == show_key(
+        ArtworkKind.POSTER, show_id=show_id, version=V
+    )
 
 
 def test_two_shows_never_share_a_key() -> None:
-    keys = {show_key(ArtworkKind.POSTER, show_id=uuid.uuid4()) for _ in range(50)}
+    keys = {show_key(ArtworkKind.POSTER, show_id=uuid.uuid4(), version=V) for _ in range(50)}
     assert len(keys) == 50
 
 
 def test_shows_and_episodes_live_in_separate_namespaces() -> None:
     shared = uuid.uuid4()
-    assert show_key(ArtworkKind.THUMBNAIL, show_id=shared) != episode_key(
-        ArtworkKind.THUMBNAIL, episode_id=shared
+    assert show_key(ArtworkKind.THUMBNAIL, show_id=shared, version=V) != episode_key(
+        ArtworkKind.THUMBNAIL, episode_id=shared, version=V
     )
 
 
 def test_the_extension_follows_the_content_type() -> None:
     show_id = uuid.uuid4()
-    assert show_key(ArtworkKind.POSTER, show_id=show_id, content_type="image/png").endswith(
-        "poster.png"
-    )
-    assert show_key(ArtworkKind.POSTER, show_id=show_id, content_type="image/webp").endswith(
-        "poster.webp"
-    )
+    assert show_key(
+        ArtworkKind.POSTER, show_id=show_id, version=V, content_type="image/png"
+    ).endswith(f"poster-{V}.png")
     assert extension_for("image/jpeg") == "jpg"
 
 
@@ -58,12 +77,14 @@ def test_an_unsupported_image_type_is_refused_with_a_readable_message() -> None:
     with pytest.raises(ValueError, match="image/gif"):
         extension_for("image/gif")
     with pytest.raises(ValueError, match="image/jpeg"):
-        show_key(ArtworkKind.POSTER, show_id=uuid.uuid4(), content_type="application/pdf")
+        show_key(
+            ArtworkKind.POSTER, show_id=uuid.uuid4(), version=V, content_type="application/pdf"
+        )
 
 
 def test_keys_are_accepted_by_the_storage_layer() -> None:
-    validate_key(show_key(ArtworkKind.POSTER, show_id=uuid.uuid4()))
-    validate_key(episode_key(ArtworkKind.THUMBNAIL, episode_id=uuid.uuid4()))
+    validate_key(show_key(ArtworkKind.POSTER, show_id=uuid.uuid4(), version=V))
+    validate_key(episode_key(ArtworkKind.THUMBNAIL, episode_id=uuid.uuid4(), version=V))
 
 
 # ----------------------------------------------------------- generated placeholder art

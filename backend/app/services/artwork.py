@@ -20,7 +20,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Artwork, Episode, Show
-from app.domain.artwork import EXTENSIONS, episode_key, show_key
+from app.domain.artwork import EXTENSIONS, episode_key, show_key, version_of
 from app.domain.reference import ArtworkKind, ArtworkProblem, Reference
 from app.domain.rules import EPISODE_REQUIRED_ARTWORK, SHOW_REQUIRED_ARTWORK
 from app.errors import ApiError, ArtworkRejected, Conflict
@@ -115,13 +115,18 @@ async def store_artwork(
     if problems:
         raise ArtworkRejected(kind.value, problems)
 
+    # Content-addressed: replacing an image writes a new URL, so a browser or CDN that
+    # already has the old one cannot keep serving it.
+    checksum = hashlib.sha256(data).hexdigest()
+    version = version_of(data)
+
     statement = select(Artwork).where(Artwork.kind == kind.value)
     if show is not None:
-        key = show_key(kind, show_id=show.id, content_type=content_type)
+        key = show_key(kind, show_id=show.id, version=version, content_type=content_type)
         statement = statement.where(Artwork.show_id == show.id)
     else:
         assert episode is not None  # guaranteed by the exactly-one check above
-        key = episode_key(kind, episode_id=episode.id, content_type=content_type)
+        key = episode_key(kind, episode_id=episode.id, version=version, content_type=content_type)
         statement = statement.where(Artwork.episode_id == episode.id)
 
     existing = (await session.execute(statement)).scalar_one_or_none()
@@ -142,7 +147,7 @@ async def store_artwork(
     existing.width = width
     existing.height = height
     existing.byte_size = len(data)
-    existing.checksum_sha256 = hashlib.sha256(data).hexdigest()
+    existing.checksum_sha256 = checksum
     await session.flush()
 
     if superseded and superseded != key:

@@ -127,7 +127,8 @@ async def test_generated_artwork_meets_the_reference_specs(
     assert len(files) == 109
 
     for path in files:
-        kind = ArtworkKind(path.stem)
+        # Keys are content-addressed: "poster-<hash>.jpg".
+        kind = ArtworkKind(path.stem.rsplit("-", 1)[0])
         with Image.open(path) as image:
             width, height = image.size
         problems = reference.artwork[kind].check(

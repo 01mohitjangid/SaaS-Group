@@ -123,27 +123,43 @@ async def _store_artwork(
     show: Show,
     episode: Episode | None = None,
 ) -> tuple[str, bool]:
-    key = (
-        keys.show_key(kind, show_id=show.id)
-        if episode is None
-        else keys.episode_key(kind, episode_id=episode.id)
-    )
-    existing = (
-        await session.execute(select(Artwork).where(Artwork.storage_key == key))
-    ).scalar_one_or_none()
-
     # `slug` picks the show's photograph and palette; the seed varies the crop, so each
     # episode thumbnail is a different slice of the same picture rather than a copy.
     composition = f"{show.slug}:{kind.value}"
     if episode is not None:
         composition = f"{composition}:{episode.id}"
     image = art.generate(reference.artwork[kind], seed=composition, label=label, slug=show.slug)
+
+    # The key carries a hash of these exact bytes, so regenerated artwork lands on a new
+    # URL rather than hiding behind a browser's cached copy of the old one.
+    version = keys.version_of(image.data)
+    key = (
+        keys.show_key(kind, show_id=show.id, version=version)
+        if episode is None
+        else keys.episode_key(kind, episode_id=episode.id, version=version)
+    )
+
+    owner = Artwork.show_id == show.id if episode is None else Artwork.episode_id == episode.id
+    existing = (
+        await session.execute(select(Artwork).where(owner, Artwork.kind == kind.value))
+    ).scalar_one_or_none()
+
     await storage.put(key, image.data, image.content_type)
+    superseded = (
+        existing.storage_key if existing is not None and existing.storage_key != key else None
+    )
 
     if existing is not None:
+        existing.storage_key = key
+        existing.content_type = image.content_type
         existing.width, existing.height = image.width, image.height
         existing.byte_size = len(image.data)
         existing.checksum_sha256 = image.checksum
+        await session.flush()
+        if superseded:
+            # Repoint first, then delete: a crash leaves a stray file, not a row that
+            # points at bytes which are gone.
+            await storage.delete(superseded)
         return key, False
 
     session.add(
