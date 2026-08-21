@@ -9,6 +9,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 from typing import Literal
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from pydantic import SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -19,7 +20,26 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 Role = Literal["admin", "editor"]
 VALID_ROLES: frozenset[str] = frozenset({"admin", "editor"})
-StorageBackend = Literal["local", "s3"]
+StorageBackend = Literal["local", "postgres", "s3"]
+
+#: Managed Postgres hands out URLs with libpq's SSL options. asyncpg does not understand
+#: `sslmode` or `channel_binding` and raises on them, so each driver gets its own form.
+_SSL_KEYS = ("sslmode", "channel_binding", "ssl")
+
+
+def _for_driver(url: str, driver: str) -> str:
+    """Rewrite a Postgres URL for one driver, translating its SSL options."""
+    parsed = urlsplit(url)
+    params = parse_qsl(parsed.query, keep_blank_values=True)
+    wants_ssl = any(key in _SSL_KEYS for key, _ in params)
+    kept = [(key, value) for key, value in params if key not in _SSL_KEYS]
+
+    if wants_ssl:
+        # asyncpg takes `ssl=require`; libpq (psycopg) takes `sslmode=require`.
+        kept.append(("ssl", "require") if driver == "asyncpg" else ("sslmode", "require"))
+
+    scheme = f"postgresql+{driver}"
+    return urlunsplit((scheme, parsed.netloc, parsed.path, urlencode(kept), parsed.fragment))
 
 
 class Settings(BaseSettings):
@@ -72,6 +92,10 @@ class Settings(BaseSettings):
     # --- catalogue ------------------------------------------------------------
     catalog_pointer_key: str = "catalog/current.json"
     catalog_run_key_prefix: str = "catalog/runs"
+
+    #: Set when the API is mounted under a path prefix — `/api` on the single-domain
+    #: Vercel deployment. Routes stay `/catalog` and `/admin/...`; only the mount moves.
+    root_path: str = ""
 
     # --- http -----------------------------------------------------------------
     cors_allow_origins: str = "http://localhost:5173,http://localhost:5174"
@@ -128,9 +152,14 @@ class Settings(BaseSettings):
         return self._parse_tokens(self.api_tokens.get_secret_value())
 
     @property
+    def async_database_url(self) -> str:
+        """What the app connects with."""
+        return _for_driver(self.database_url, "asyncpg")
+
+    @property
     def sync_database_url(self) -> str:
         """Alembic runs synchronously; the app runs on asyncpg."""
-        return self.database_url.replace("+asyncpg", "+psycopg")
+        return _for_driver(self.database_url, "psycopg")
 
     @property
     def cors_origins(self) -> list[str]:

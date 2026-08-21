@@ -4,15 +4,19 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
+
 from app.config import REPO_ROOT, Settings
 from app.storage.base import ObjectNotFound, ObjectStorage, StorageError, StoredObject
 from app.storage.local import LocalDiskStorage
+from app.storage.postgres import PostgresStorage
 from app.storage.s3 import S3CompatibleStorage
 
 __all__ = [
     "LocalDiskStorage",
     "ObjectNotFound",
     "ObjectStorage",
+    "PostgresStorage",
     "S3CompatibleStorage",
     "StorageError",
     "StoredObject",
@@ -20,8 +24,15 @@ __all__ = [
 ]
 
 
-def build_storage(settings: Settings) -> ObjectStorage:
-    """The whole 'swap to R2' seam: one branch, driven by ``STORAGE_BACKEND``."""
+def build_storage(
+    settings: Settings, session_factory: async_sessionmaker[AsyncSession] | None = None
+) -> ObjectStorage:
+    """The whole 'swap the backend' seam: one branch, driven by ``STORAGE_BACKEND``."""
+    if settings.storage_backend == "postgres":
+        if session_factory is None:
+            raise ValueError("STORAGE_BACKEND=postgres needs a database session factory")
+        return PostgresStorage(session_factory, settings.public_media_base_url)
+
     if settings.storage_backend == "local":
         # A relative root is resolved against the repo, not the working directory, so
         # `make seed` (which runs in backend/) and the tests agree on one location.

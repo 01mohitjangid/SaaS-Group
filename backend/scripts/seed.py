@@ -323,7 +323,7 @@ async def seed_database(
 
     engine = create_engine(settings)
     factory = create_session_factory(engine)
-    storage = build_storage(settings)
+    storage = build_storage(settings, factory)
 
     try:
         async with factory() as session:

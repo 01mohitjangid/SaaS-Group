@@ -236,7 +236,21 @@ returned 503 forever.
 
 ### 2. Moving the storage abstraction from local disk to Cloudflare R2
 
-`STORAGE_BACKEND=s3` plus the four `S3_*` variables. Nothing else. `ObjectStorage` is
+`STORAGE_BACKEND=s3` plus the four `S3_*` variables. Nothing else.
+
+**And we proved it by doing the same thing to a third backend.** Deploying this needed
+somewhere for artwork to live, and R2 wants a payment card. So the seam grew
+`PostgresStorage` — artwork in the same Neon database as everything else — and the
+deployment runs on `STORAGE_BACKEND=postgres`. That change was one ~90-line class, one
+migration for its table, and one branch in `build_storage`. No route, no service and no
+test outside the storage layer moved. The whole catalogue's artwork is 4.1 MB against
+Neon's 500 MB, and it is the honest choice for a free tier rather than a pretend R2 setup.
+
+The trade-off, stated plainly: bytes travel through the API instead of from a bucket
+edge, so there is no CDN. Artwork keys are content-addressed, so those responses are
+`immutable` and cached forever by the browser — which is most of what a CDN would have
+bought. It stops being right at the size where a single published catalogue file also
+stops being right. `ObjectStorage` is
 five methods; `LocalDiskStorage` and `S3CompatibleStorage` implement it and `build_storage`
 has one branch. R2 speaks the S3 API, so the same class covers R2, MinIO and AWS S3 —
 only the endpoint differs.

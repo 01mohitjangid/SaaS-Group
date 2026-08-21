@@ -8,7 +8,8 @@
     "typecheck": "pnpm --filter \"./*\" typecheck",
     "lint": "eslint .",
     "format:check": "prettier --check .",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build:vercel": "pnpm --filter @peblo/viewer build && CMS_BASE_PATH=/admin/ pnpm --filter @peblo/cms build && rm -rf dist && mkdir -p dist/admin && cp -R viewer/dist/. dist/ && cp -R cms/dist/. dist/admin/"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

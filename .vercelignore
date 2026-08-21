@@ -1,0 +1,26 @@
+# Keep the serverless bundle small and free of anything secret.
+#
+# Patterns are anchored with a leading slash: a bare `storage` also matches
+# backend/app/storage and silently breaks the import.
+
+# Never ship credentials. The platform injects env vars; a .env in the bundle is a
+# second, stale copy of them sitting on the function's filesystem.
+.env
+.env.*
+!.env.example
+
+/storage
+/docs
+/data/artwork
+/frontend/dist
+/frontend/cms/dist
+/frontend/viewer/dist
+/backend/.venv
+/backend/tests
+/backend/tools
+/backend/alembic
+/backend/scripts
+/.claude
+/.github
+**/__pycache__
+**/*.pyc

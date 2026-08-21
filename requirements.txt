@@ -1,0 +1,15 @@
+# Runtime dependencies for the Vercel Python function.
+#
+# Deliberately not the full backend/pyproject.toml: a serverless bundle is size-capped,
+# and the deployment neither runs migrations (alembic) nor talks to S3 (boto3) — artwork
+# lives in Postgres. Keep this in step with backend/pyproject.toml when adding a runtime
+# dependency; scripts/check.sh has a test that fails if the two drift.
+fastapi>=0.115
+uvicorn>=0.32
+sqlalchemy[asyncio]>=2.0.36
+asyncpg>=0.30
+pydantic>=2.9
+pydantic-settings>=2.6
+python-multipart>=0.0.17
+pillow>=11.0
+orjson>=3.10

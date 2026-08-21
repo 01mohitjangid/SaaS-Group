@@ -14,10 +14,6 @@ from __future__ import annotations
 import asyncio
 from typing import TYPE_CHECKING
 
-import boto3
-from botocore.config import Config
-from botocore.exceptions import ClientError
-
 from app.storage.base import ObjectNotFound, StoredObject, validate_key
 
 if TYPE_CHECKING:  # pragma: no cover - typing only
@@ -37,6 +33,11 @@ class S3CompatibleStorage:
         secret_access_key: str | None = None,
         public_base_url: str | None = None,
     ) -> None:
+        # Imported here, not at module scope: boto3 is ~100 MB unzipped and only this
+        # backend needs it, which matters wherever the bundle size is capped.
+        import boto3
+        from botocore.config import Config
+
         self._bucket = bucket
         self._public_base_url = (public_base_url or "").rstrip("/")
         self._client: S3Client = boto3.client(
@@ -64,6 +65,8 @@ class S3CompatibleStorage:
         return StoredObject(key=key, size=len(data), content_type=content_type, etag=etag)
 
     def _get_sync(self, key: str) -> bytes:
+        from botocore.exceptions import ClientError
+
         try:
             response = self._client.get_object(Bucket=self._bucket, Key=key)
         except ClientError as exc:
@@ -82,6 +85,8 @@ class S3CompatibleStorage:
         await asyncio.to_thread(lambda: self._client.delete_object(Bucket=self._bucket, Key=key))
 
     def _exists_sync(self, key: str) -> bool:
+        from botocore.exceptions import ClientError
+
         try:
             self._client.head_object(Bucket=self._bucket, Key=key)
         except ClientError as exc:

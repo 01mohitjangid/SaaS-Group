@@ -10,6 +10,7 @@ __pycache__/
 # Node
 node_modules/
 dist/
+frontend/dist/
 .vite/
 # tsc's incremental cache: machine-specific absolute paths, rewritten on every build.
 *.tsbuildinfo
@@ -34,3 +35,5 @@ backend/storage/
 
 # OS
 .DS_Store
+.vercel
+.env*
