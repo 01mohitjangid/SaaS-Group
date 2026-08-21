@@ -11,6 +11,8 @@ __pycache__/
 node_modules/
 dist/
 .vite/
+# tsc's incremental cache: machine-specific absolute paths, rewritten on every build.
+*.tsbuildinfo
 
 # Env & secrets
 .env
@@ -25,6 +27,10 @@ backend/storage/
 
 .claude/
 .docs/
+
+# Show photographs are fetched by `make artwork` and committed on purpose: seeding must
+# never need the network, or `docker compose up` breaks whenever the network does.
+!data/artwork/
 
 # OS
 .DS_Store

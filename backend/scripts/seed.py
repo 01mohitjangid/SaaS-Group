@@ -132,7 +132,12 @@ async def _store_artwork(
         await session.execute(select(Artwork).where(Artwork.storage_key == key))
     ).scalar_one_or_none()
 
-    image = art.generate(reference.artwork[kind], seed=f"{show.slug}:{kind.value}", label=label)
+    # `slug` picks the show's photograph and palette; the seed varies the crop, so each
+    # episode thumbnail is a different slice of the same picture rather than a copy.
+    composition = f"{show.slug}:{kind.value}"
+    if episode is not None:
+        composition = f"{composition}:{episode.id}"
+    image = art.generate(reference.artwork[kind], seed=composition, label=label, slug=show.slug)
     await storage.put(key, image.data, image.content_type)
 
     if existing is not None:

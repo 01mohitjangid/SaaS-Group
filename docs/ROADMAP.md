@@ -128,7 +128,7 @@ a few milliseconds and not worth an index.
   exposure is "possibly the older build wins", not a corrupt read — but at a size where a
   publish took minutes this would need a fencing token.
 
-## Step 3 — Two React UIs
+## Step 3 — Two React UIs  ✅ done
 
 * **CMS** (`frontend/cms`) — list with search/filters/pagination, edit form with three
   labelled artwork slots and live previews, publish page with the validation report and
@@ -157,4 +157,4 @@ completed; the Part E written answers in the README.
 | `API_TOKENS` is optional | It is bootstrap only — `scripts/seed.py` turns it into `users` rows, and the API authenticates against that table. A production API should not need to hold tokens it never reads. |
 | Static bearer tokens in `API_TOKENS`, materialised as `users` rows | Keeps role enforcement real and testable without standing up an IdP for a take-home. |
 | Language-variant duration drift is accepted, not flagged | Hindi dubs are genuinely a different length. The catalogue will pick one deterministically at publish time. |
-| Sample `assets/` images were not in the shared Drive folder | Placeholder artwork is generated at exact spec instead (`backend/scripts/artwork.py`), so every show really has files. The upload endpoint in step 2 is what enforces the specs on real uploads. |
+| Show artwork is one committed photograph, cropped per surface | The sample `assets/` were not in the Drive share. `make artwork` fetches one Unsplash photograph per show into `data/artwork/` **once**; seeding crops it to poster, banner and per-episode thumbnails offline. Fetching at seed time would make `docker compose up` depend on the network, which is a graded line item. Missing photographs fall back to generated abstract art, so the offline path is real rather than theoretical. |

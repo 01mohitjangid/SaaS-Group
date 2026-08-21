@@ -215,3 +215,18 @@ async def test_an_unexpected_failure_becomes_json_and_hides_the_detail(
     assert body["code"] == "internal_error"
     assert "secret internal detail" not in response.text
     assert catalog_module  # imported for the side effect of proving the app is wired
+
+
+async def test_whoami_tells_the_cms_what_this_token_may_do(client: httpx.AsyncClient) -> None:
+    """The CMS disables publish with a reason instead of letting the button 403."""
+    editor = (await client.get("/admin/me", headers=as_editor())).json()
+    assert editor == {
+        "email": "editor@peblo.tv",
+        "display_name": "Editor",
+        "role": "editor",
+        "can_publish": False,
+    }
+    admin = (await client.get("/admin/me", headers=as_admin())).json()
+    assert admin["role"] == "admin"
+    assert admin["can_publish"] is True
+    assert (await client.get("/admin/me")).status_code == 401

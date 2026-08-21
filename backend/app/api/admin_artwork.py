@@ -25,6 +25,21 @@ router = APIRouter(prefix="/admin/artwork", tags=["artwork"])
 reference_router = APIRouter(prefix="/admin", tags=["content"])
 
 
+@reference_router.get("/me", summary="Who the current token belongs to, and what it may do")
+async def whoami(user: EditorUser) -> dict[str, object]:
+    """The CMS needs this to disable publish *with a reason* rather than by guessing.
+
+    Without it the only way to discover a role is to attempt the action and read the
+    403 — which means showing an editor a button that always fails.
+    """
+    return {
+        "email": user.email,
+        "display_name": user.display_name,
+        "role": user.role,
+        "can_publish": user.role == "admin",
+    }
+
+
 @reference_router.get(
     "/reference",
     summary="The allowed sections, categories and languages, for the CMS's pickers",

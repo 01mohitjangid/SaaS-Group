@@ -3,6 +3,7 @@
 # 253 MB context and a 1.1 GB image.
 **/.venv/
 **/node_modules/
+**/dist/
 **/__pycache__/
 **/.mypy_cache/
 **/.pytest_cache/
