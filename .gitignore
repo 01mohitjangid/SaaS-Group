@@ -11,6 +11,8 @@ __pycache__/
 node_modules/
 dist/
 .vite/
+# tsc's incremental cache: machine-specific absolute paths, rewritten on every build.
+*.tsbuildinfo
 
 # Env & secrets
 .env
