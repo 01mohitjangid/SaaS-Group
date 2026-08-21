@@ -54,8 +54,8 @@ function SignIn() {
           </Button>
 
           <p className="text-xs text-muted-foreground">
-            Development tokens: <code className="text-foreground">dev-editor-token</code> (edit) or{" "}
-            <code className="text-foreground">dev-admin-token</code> (edit and publish).
+            Demo tokens: <code className="text-foreground">prod-editor-change-me</code> (edit) or{" "}
+            <code className="text-foreground">prod-admin-change-me</code> (edit and publish).
           </p>
         </form>
       </Card>
