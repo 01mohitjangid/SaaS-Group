@@ -27,7 +27,8 @@ export function App() {
                 )
               }
             >
-              Home
+
+             ## Home 
             </NavLink>
           </nav>
 

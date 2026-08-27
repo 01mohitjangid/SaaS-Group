@@ -25,11 +25,13 @@ createRoot(document.getElementById("root")!).render(
     <QueryClientProvider client={client}>
       <BrowserRouter>
         <Routes>
+
           <Route element={<App />}>
             <Route path="/" element={<HomePage />} />
             <Route path="/search" element={<SearchPage />} />
             <Route path="/shows/:slug" element={<ShowPage />} />
           </Route>
+          
         </Routes>
       </BrowserRouter>
     </QueryClientProvider>
