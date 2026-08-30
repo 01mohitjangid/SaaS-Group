@@ -1,37 +1,20 @@
 import { Tv } from "lucide-react";
 
+import { BootScreen } from "@shared/ui/loader";
 import { EmptyState, ErrorState } from "@shared/ui/states";
-import { Skeleton } from "@shared/ui/primitives";
 
 import { Hero } from "../components/Hero";
 import { Row } from "../components/Row";
 import { useCatalog } from "../lib/queries";
 
-function HomeSkeleton() {
-  return (
-    <div className="animate-pulse">
-      <Skeleton className="h-[52vw] max-h-[560px] min-h-[320px] w-full rounded-none" />
-      {[0, 1].map((row) => (
-        <div key={row} className="px-4 py-4 sm:px-8">
-          <Skeleton className="mb-3 h-5 w-32" />
-          <div className="flex gap-3">
-            {Array.from({ length: 7 }).map((_, index) => (
-              <Skeleton
-                key={index}
-                className="aspect-2/3 w-[136px] shrink-0 sm:w-[160px] md:w-[184px]"
-              />
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export function HomePage() {
   const { data, isPending, error, refetch } = useCatalog();
 
-  if (isPending) return <HomeSkeleton />;
+  // `isPending` is true only when nothing is cached, so this is the arrival on the site
+  // and nothing else — a return visit to the home route reads from cache and never shows
+  // it. A content-shaped skeleton was here before; it promised "almost there", which is
+  // the wrong promise when the free-tier API is cold and the wait is measured in seconds.
+  if (isPending) return <BootScreen />;
   if (error)
     return (
       <div className="p-8">
